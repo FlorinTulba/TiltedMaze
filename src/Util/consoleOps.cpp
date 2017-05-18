@@ -4,11 +4,14 @@
  You might visit http://www.agame.com/game/tilt-maze
  to try yourself solving such problems (use the arrow keys to move)
 
- The program is able to load the puzzle from text files.
+ The program is able to load the puzzle from text files, but also
+ from captured snapshots, which contain various imperfections.
+ It is possible to recognize the original maze even when rotating
+ or mirroring the snapshot.
  
  Solving the maze is presented as a console animation.
 
- The project uses Boost.
+ The project uses Boost, Jpeg, Png, Tiff, Zlib libraries.
 
  Copyright (c) 2014, 2017 Florin Tulba
 

@@ -4,11 +4,14 @@
  You might visit http://www.agame.com/game/tilt-maze
  to try yourself solving such problems (use the arrow keys to move)
 
- The program is able to load the puzzle from text files.
+ The program is able to load the puzzle from text files, but also
+ from captured snapshots, which contain various imperfections.
+ It is possible to recognize the original maze even when rotating
+ or mirroring the snapshot.
  
  Solving the maze is presented as a console animation.
 
- The project uses Boost.
+ The project uses Boost, Jpeg, Png, Tiff, Zlib libraries.
 
  Copyright (c) 2014, 2017 Florin Tulba
 
@@ -18,15 +21,25 @@
 
 #pragma warning ( push, 0 )
 
+#include <tchar.h>
 #include <conio.h>
 #include <iomanip>
 #include <strstream>
 #include <queue>
+#include <algorithm>
 
+#include <boost/filesystem/convenience.hpp>
 #include <boost/assign/list_of.hpp>
 #include <boost/assign/std/map.hpp>
 #include <boost/assign/std/list.hpp>
 #include <boost/assign/std/set.hpp>
+#include <boost/icl/closed_interval.hpp>
+#include <boost/math/special_functions/round.hpp>
+#include <boost/math/special_functions/trunc.hpp>
+#include <boost/gil/extension/io/jpeg_all.hpp>
+#include <boost/gil/extension/io/png_all.hpp>
+#include <boost/gil/extension/io/bmp_all.hpp>
+#include <boost/gil/extension/io/tiff_all.hpp>
 
 #pragma warning ( pop )
 
@@ -34,6 +47,8 @@ using namespace std;
 using namespace boost;
 using namespace boost::icl;
 using namespace boost::assign;
+using namespace boost::gil;
+using namespace boost::filesystem;
 
 namespace {
 	enum { TEST_MAZES_COUNT = 11 };
@@ -53,53 +68,87 @@ namespace {
 		return *it++;
 	}
 
-	void displaySeg(const TiltedMaze::Segment &s) {
+	void displaySeg(const TiltedMaze::Segment &s, const TiltedMaze::Coord &towardsEnd) {
 		int ch = _getch();
 		if(ch==0||ch==0xE0) _getch(); // discard any chars left in the console buffer due to pressed function keys
 
 		ConsoleColor c = nextColor();
 		setConsoleTextColor(c, bgColor);
-		unsigned fi = s.fixedCoord(), vl, vu;
-		TiltedMaze::Coord lCoord = s.lowerEnd(), uCoord = s.upperEnd();
-		if(s.isHorizontal()) {
-			setConsoleCursorPos(TiltedMaze::displayIndex(fi, true), TiltedMaze::displayIndex(lCoord.col, false));
-			cout<<string(((uCoord.col-lCoord.col)<<1) + 1, traversalCh);
 
+		unsigned fi = s.fixedCoord();
+		int vl, vu, theRow = 0, theCol = 0;
+		TiltedMaze::Coord lCoord = s.lowerEnd(), uCoord = s.upperEnd();
+
+		if(s.isHorizontal()) {
+			theRow = TiltedMaze::displayIndex(fi, true);
+			theCol = TiltedMaze::displayIndex(lCoord.col, false);
+			setConsoleCursorPos(theRow, theCol);
+			cout<<string(((uCoord.col-lCoord.col)<<1) + 1, traversalCh);
+		
 		} else {
-			unsigned col4Display = (unsigned)TiltedMaze::displayIndex(fi, false);
-			vl = (unsigned)TiltedMaze::displayIndex(lCoord.row, true);
-			vu = (unsigned)TiltedMaze::displayIndex(uCoord.row, true);
+			theCol = TiltedMaze::displayIndex(fi, false);
+			theRow = vl = TiltedMaze::displayIndex(lCoord.row, true);
+			vu = TiltedMaze::displayIndex(uCoord.row, true);
 			for(; vl<=vu; ++vl) {
-				setConsoleCursorPos((int)vl, (int)col4Display);
+				setConsoleCursorPos(vl, theCol);
 				cout<<traversalCh;
 			}
 		}
-		setConsoleCursorPos(0, 0);
+
+		if(s.isLowerEnd(towardsEnd))
+			setConsoleCursorPos(theRow, theCol);
+		else
+			cout<<'\b';
+	}
+
+	void pressKeyToContinue(ostream &os) {
+		os<<"Press a key to continue ...";
+		int ch = _getch();
+		if(ch==0||ch==0xE0) _getch(); // discard any chars left in the console buffer due to pressed function keys
+		os<<endl;
 	}
 
 	/// Verifying all existing test files
 	bool testsOk() {
 		bool ok = true;
-		for(int i = 1, lim = 1 + TEST_MAZES_COUNT; i < lim; ++i) {
-			ostringstream oss;
-			oss<<"res/maze"<<i<<".txt";
-			string mazeName = oss.str();
-			try {
-				TiltedMaze maze(mazeName);
-				if(false == maze.solve(false)) {
-					cerr<<"Couldn't solve "<<mazeName<<endl;
-					ok = false;
+		cout<<"Ensuring correct parsing & solving of all test files ..."<<endl<<endl;
+		const path resFolder("res");
+		const vector<const string> knownPrefixes { "maze", "rot_maze" };
+		vector<string> knownSuffixes((size_t)TEST_MAZES_COUNT);
+		for(int suffix = 1; suffix <= TEST_MAZES_COUNT; ++suffix)
+			knownSuffixes[(size_t)(suffix - 1)] = to_string(suffix);
+		const vector<const string> knownExtensions { ".bmp", ".jpg", ".jpeg", ".png", ".tif", ".tiff", ".txt" };
+
+		path mazePrefix, mazePathNoExt, mazePath;
+
+		for(const auto &prefix : knownPrefixes) {
+			mazePrefix = path(resFolder).append(prefix);
+			for(const auto &suffix : knownSuffixes) {
+				mazePathNoExt = path(mazePrefix).concat(suffix);
+				for(const auto &extension : knownExtensions) {
+					mazePath = path(mazePathNoExt).concat(extension);
+					if(exists(mazePath)) {
+						try {
+							TiltedMaze tm(mazePath.string());
+							if(!tm.solve(false)) {
+								cerr<<"Maze "<<mazePath<<" couldn't be solved!"<<endl;
+								ok = false;
+							}
+						} catch(std::exception &e) {
+							cerr<<"There were problems parsing "<<mazePath<<" : "<<endl<<'\t'<<e.what()<<endl<<endl;
+							ok = false;
+						}
+					}
 				}
-			} catch(std::exception&) {
-				cerr<<"Couldn't load maze "<<mazeName<<endl;
-				ok = false;
 			}
 		}
+
 		return ok;
 	}
 }
 
 TiltedMaze::Targets graphTargets;
+rgb8_pixel_t TiltedMaze::ImageTiltedMazeReader::greenPixel(0, 255, 0);
 
 string TiltedMaze::Coord::toString() const {
 	ostringstream oss;
@@ -235,7 +284,7 @@ void TiltedMaze::Segment::traverse(const Coord *from/* = NULL*/, const Coord *en
 		++rangeUnvisited.first; // to escape the invalidation triggered by next call
 		target->visit();
 		if(false == solveGraphically)
-			cout<<"#";
+			cout<<" $ ";
 	}
 }
 
@@ -316,7 +365,7 @@ optional<TiltedMaze::BranchlessPath::LSI> TiltedMaze::BranchlessPath::lastUnvisi
 	bool secondEndAsEnd = ! isFirstEnd(*end);
 			
 	LSI itFrom = locateCoord(*fromCoord),
-		itEnd = (secondEndAsEnd ? (--children.cend()) : (children.begin()));
+		itEnd = (secondEndAsEnd ? (--children.end()) : (children.begin()));
 	Segment *seg = *itEnd;
 	Coord segBegin = segEndWithinBranchlessPath(itEnd, secondEndAsEnd),
 		segCoordNext2Begin,
@@ -442,11 +491,13 @@ void TiltedMaze::BranchlessPath::setLinksOwners() {
 void TiltedMaze::BranchlessPath::traverse(const Coord &from, LSI itFrom, LSI itTo, bool towardsLowerPartOfBranchlessPath) {
 	Segment *seg = *itFrom;
 	Coord segEnd = segEndWithinBranchlessPath(itFrom, towardsLowerPartOfBranchlessPath);
-	seg->traverse(&from, &segEnd);
-	if(solveGraphically)
-		displaySeg(Segment(from, segEnd));
-	else
-		cout<<segEnd;
+	if(from != segEnd) {
+		seg->traverse(&from, &segEnd);
+		if(solveGraphically)
+			displaySeg(Segment(from, segEnd), segEnd);
+		else
+			cout<<segEnd;
+	}
 
 	if(itFrom != itTo) {
 		for(updateLSI(itFrom, towardsLowerPartOfBranchlessPath);
@@ -456,17 +507,18 @@ void TiltedMaze::BranchlessPath::traverse(const Coord &from, LSI itFrom, LSI itT
 			seg->traverse();
 			segEnd = seg->otherEnd(segEnd);
 			if(solveGraphically)
-				displaySeg(*seg);
+				displaySeg(*seg, segEnd);
 			else
 				cout<<segEnd;
 		}
 
 		seg = *itTo;
 		seg->traverse();
+		segEnd = seg->otherEnd(segEnd);
 		if(solveGraphically)
-			displaySeg(*seg);
+			displaySeg(*seg, segEnd);
 		else
-			cout<<seg->otherEnd(segEnd);
+			cout<<segEnd;
 	}
 }
 
@@ -475,12 +527,12 @@ void TiltedMaze::BranchlessPath::traverse(const Coord &from, const Coord &end,
 										  bool stopAfterLastTarget/* = false*/) {
 
 	if(false == solveGraphically) {
-		cout<<endl;
-		cout<<"Traversing BranchlessPath "<<_id<<" between "<<from<<" -> "<<end<<boolalpha<<"  (";
-		PRINT(visitAllTargets);
-		cout<<" ; ";
-		PRINT(stopAfterLastTarget);
-		cout<<") :"<<endl;
+// 				cout<<endl;
+// 				cout<<"Traversing BranchlessPath "<<_id<<" between "<<from<<" -> "<<end<<boolalpha<<"  (";
+// 				PRINT(visitAllTargets);
+// 				cout<<" ; ";
+// 				PRINT(stopAfterLastTarget);
+// 				cout<<") :"<<endl;
 		cout<<from; // the start coord is expected to be displayed before calling traverse
 	}
 
@@ -501,17 +553,17 @@ void TiltedMaze::BranchlessPath::traverse(const Coord &from, const Coord &end,
 
 		if(isEndThe1stEnd) {
 			distanceToFarthestTargetOutOfTheWay = (oItLastUnvisitedOtherEnd) ?
-				std::distance(itStart, *oItLastUnvisitedOtherEnd) : 0;
+				(std::distance(itStart, *oItLastUnvisitedOtherEnd) + 1) : 0;
 
 			distanceToFarthestTargetOnTheWay = (oItLastUnvisitedEnd) ?
-				std::distance(*oItLastUnvisitedEnd, itStart) : 0;
+				(std::distance(*oItLastUnvisitedEnd, itStart) + 1) : 0;
 
 		} else {
 			distanceToFarthestTargetOutOfTheWay = (oItLastUnvisitedOtherEnd) ?
-				std::distance(*oItLastUnvisitedOtherEnd, itStart) : 0;
+				(std::distance(*oItLastUnvisitedOtherEnd, itStart) + 1) : 0;
 
 			distanceToFarthestTargetOnTheWay = (oItLastUnvisitedEnd) ?
-				std::distance(itStart, *oItLastUnvisitedEnd) : 0;
+				(std::distance(itStart, *oItLastUnvisitedEnd) + 1) : 0;
 		}
 
 		// Optimal choice is to choose the end towards the farthest target
@@ -573,10 +625,337 @@ string TiltedMaze::BranchlessPath::toString() const {
 	return oss.str();
 }
 
-optional<string> TiltedMaze::nextLine(ifstream &ifs) const {
+TiltedMaze::ImageTiltedMazeReader
+	::FeasibleMazeConfig::FeasibleMazeConfig(const rgb8_view_t &theInnerMazeView,
+											ptrdiff_t theWallWidth,
+											ptrdiff_t feasibleMazeSz ) :
+		innerMazeView(theInnerMazeView), wallWidth(theWallWidth),
+		mazeSz(feasibleMazeSz), _foundWallsCount(0U) {
+	require(mazeSz > 1, "The maze should be at least 2x2!");
+
+	hFoundWalls.resize((size_t)mazeSz);
+	vFoundWalls.resize((size_t)mazeSz);
+
+	rowCenters.resize((size_t)mazeSz);
+	idealWallPositions.resize(size_t(mazeSz - 1LL));
+
+	// compute rowCenters & idealWallPositions:
+	ptrdiff_t handyAvailSpace = innerMazeView.width() + wallWidth;
+	ptrdiff_t x = rowCenters[0] = handyAvailSpace - mazeSz * wallWidth, xNext;
+	handyAvailSpace <<= 1;
+	double mazeSzDoubled = (double)(mazeSz << 1);
+
+	for(ptrdiff_t i=1; i<mazeSz; ++i) {
+		x = rowCenters[(size_t)i] = x + handyAvailSpace;
+	}
+
+	x = rowCenters[0ULL] = (ptrdiff_t)boost::math::llround( rowCenters[0ULL] / mazeSzDoubled );
+	for(ptrdiff_t i=1; i<mazeSz; ++i) {
+		xNext = rowCenters[(size_t)i] = (ptrdiff_t)boost::math::llround(rowCenters[(size_t)i] / mazeSzDoubled);
+		idealWallPositions[size_t(i-1LL)] = (x + xNext + 1) >> 1; // rounded arithmetic mean
+		x = xNext;
+	}
+
+	// Examine the maze:
+	detectWallsOnRows(innerMazeView, vFoundWalls); // traverse each row detecting vertical walls
+
+	// use detectWallsOnRows on the rotated clockwise view of the flipped up-down view of the innerMazeView
+	detectWallsOnRows( rotated90cw_view( flipped_up_down_view( innerMazeView )),
+		hFoundWalls); // traverses each original column detecting horizontal walls
+}
+
+#pragma warning ( disable : CONST_TEST_CONDITION )
+TiltedMaze::ImageTiltedMazeReader::ImageTiltedMazeReader(const string &theMazeName,
+														 const string &outDir/* = ""*/,
+														 bool verbose/* = false*/) :
+				mazeName(theMazeName),
+				monitorOn(outDir.length() > 0),
+				mazeOutName((outDir.length()==0) ? "" : (outDir + "/processedMaze.bmp")), verbose(verbose) {
+		string imgType(extension(path(mazeName)));
+
+		if(imgType.compare(".bmp") == 0) {
+			read_image(mazeName.c_str(), img, bmp_tag());
+
+		} else if(imgType.compare(".png") == 0) {
+			read_image(mazeName.c_str(), img, png_tag());
+
+		} else if(imgType.compare(".jpg") == 0 || imgType.compare(".jpeg") == 0) {
+			read_image(mazeName.c_str(), img, jpeg_tag());
+
+		} else if(imgType.compare(".tif") == 0 || imgType.compare(".tiff") == 0) {
+			read_image(mazeName.c_str(), img, tiff_tag());
+
+		} else {
+			require(false, "Unsupported image type!");
+		}
+
+		imgView = view(img);
+
+		if(monitorOn) {
+			imgOut = img;
+			imgOutView = view(imgOut);
+		}
+
+		examineMazeBorder();
+
+		// LOOKING 1ST FOR THE CIRCLE, AS IT'S QUITE LARGE AND PROVIDES A HINT ABOUT THE MAZE SIZE
+		list<ptrdiff_t> feasibleMazeSizes = circleProcessing();
+
+		if(verbose)
+			cout<<endl;
+
+		unsigned maxWallsFound = 0U;
+		for(ptrdiff_t feasibleMazeSz : feasibleMazeSizes) {
+			std::shared_ptr<FeasibleMazeConfig> cfg =
+				std::make_shared<FeasibleMazeConfig>(innerMazeView, wallWidth, feasibleMazeSz);
+
+			unsigned foundWalls = cfg->foundWallsCount();
+			if(verbose)
+				cout<<"The configuration considering the maze size as "<<cfg->mazeSz<<" found "<<foundWalls<<" walls!"<<endl;
+
+			if(foundWalls > maxWallsFound) {
+				maxWallsFound = foundWalls;
+				mostLikelyMazeConfig = cfg;
+			}
+		}
+		if(verbose)
+			cout<<endl<<"Deduced that the maze size is "<<mostLikelyMazeConfig->mazeSz<<endl;
+
+		if(monitorOn)
+			mostLikelyMazeConfig->displayFoundWalls(innerMazeOutView); // display the identified walls of mostLikelyMazeConfig
+
+		// update the circle center to denote which column (x), row (y) within the maze the circle resides
+		double handyCellSz = (innerMazeView.width() + wallWidth) / (double)mostLikelyMazeConfig->mazeSz;
+		circleCenter.x = (ptrdiff_t)boost::math::lltrunc((circleCenter.x + wallWidth_2) / handyCellSz);
+		circleCenter.y = (ptrdiff_t)boost::math::lltrunc((circleCenter.y + wallWidth_2) / handyCellSz);
+
+		// TACKLING THE BLUE SQUARES:
+		squaresProcessing();
+		if(verbose)
+			cout<<endl<<squares.size()<<" squares were found."<<endl;
+
+		if(monitorOn) {
+			// SHOW THE IDENTIFIED ENTITIES:
+			write_view(mazeOutName.c_str(), imgOutView, bmp_tag());
+			std::system(mazeOutName.c_str());
+		}
+}
+#pragma warning ( default : CONST_TEST_CONDITION )
+
+void TiltedMaze::ImageTiltedMazeReader::squaresProcessing() {
+	for(ptrdiff_t i=0; i<mostLikelyMazeConfig->mazeSz; ++i) {
+		ptrdiff_t r = mostLikelyMazeConfig->getRowCenters()[(size_t)i];
+		rgb8_view_t::x_iterator 
+			rowBegin = innerMazeView.row_begin(r),
+			rowBeginOut = innerMazeOutView.row_begin(r);
+
+		for(ptrdiff_t j=0; j<mostLikelyMazeConfig->mazeSz; ++j) {
+			ptrdiff_t c = mostLikelyMazeConfig->getRowCenters()[(size_t)j];
+			rgb8_view_t::x_iterator
+				cellCenter = rowBegin + c,
+				cellCenterOut = rowBeginOut + c;
+
+			if(isFit(*(cellCenter), BLUE_CHECK)) {
+				squares.emplace_back(point_t(j, i));
+
+				if(monitorOn)
+					*cellCenterOut = greenPixel;
+			}
+		}
+	}
+}
+
+list<ptrdiff_t> TiltedMaze::ImageTiltedMazeReader::circleProcessing() {
+	pair<point_t, point_t> enclosedCircle = encloseCircle();
+	ptrdiff_t circleDiam = enclosedCircle.second.x - enclosedCircle.first.x;
+	circleCenter = rectCenter(enclosedCircle.first, enclosedCircle.second);
+
+	if(monitorOn)
+		drawRect(innerMazeOutView, enclosedCircle.first, enclosedCircle.second);
+
+	/*
+	BASED ON THE CIRCLE DIAMETER WE ESTIMATE THE MAZE ROWS/COLUMNS COUNT (n) AS A RANGE:
+	innerAvailSpace = n * innerCellSz + (n-1) * wallWidth =>
+	innerCellSz + wallWidth = (innerAvailSpace + wallWidth) / n =>
+	n = (innerAvailSpace + wallWidth) / (innerCellSz + wallWidth)
+
+	Empirically, innerCellSz may be between [circleDiam+4, 2*circleDiam] =>
+
+	n falls within:
+	min: (innerAvailSpace + wallWidth) / (2*circleDiam + wallWidth) - 1st int value larger or equal to it
+	max: (innerAvailSpace + wallWidth) / (circleDiam+4 + wallWidth) - last int value smaller or equal to it
+	*/
+	ptrdiff_t innerAvailSpace = ( std::min )(innerMazeView.width(), innerMazeView.height());
+	ptrdiff_t handyAvailSpace = innerAvailSpace + wallWidth, temp = (circleDiam << 1) + wallWidth;
+	ptrdiff_t nMax = handyAvailSpace / (circleDiam+4 + wallWidth); // correct 'rounding' by default
+	ptrdiff_t nMin = (handyAvailSpace + temp - 1) / temp; // helped rounding by adding (temp-1) above
+
+	list<ptrdiff_t> possibleNs;
+	for(ptrdiff_t m = nMin; m <= nMax; ++m)
+		possibleNs.push_back(m);
+
+	if(verbose)
+		cout<<"The maze size is within: "<<nMin<<" .. "<<nMax<<endl<<endl;
+
+	// TRYING TO EXCLUDE ALL n FROM [nMin, nMax] THAT WOULD PUT WALLS ON THE CIRCLE - NOT ALLOWED
+	for(ptrdiff_t n = nMin; n <= nMax; ++n) {
+		// determine to which cell the (center of the) circle would belong:
+		double 
+			handyCellSz = handyAvailSpace / (double)n,
+			halfInnerCellSz = (handyCellSz - wallWidth) / 2;
+		ptrdiff_t innerCellSz_2 = (ptrdiff_t)halfInnerCellSz;
+
+		ptrdiff_t yCircleCenter = (ptrdiff_t)boost::math::lltrunc((circleCenter.y + wallWidth_2) / handyCellSz);
+		ptrdiff_t xCircleCenter = (ptrdiff_t)boost::math::lltrunc((circleCenter.x + wallWidth_2) / handyCellSz);
+
+		ptrdiff_t xCellCenter = 
+			(ptrdiff_t)boost::math::lltrunc(halfInnerCellSz + (xCircleCenter * handyAvailSpace) / (double)n);
+		ptrdiff_t yCellCenter = 
+			(ptrdiff_t)boost::math::lltrunc(halfInnerCellSz + (yCircleCenter * handyAvailSpace) / (double)n);
+
+		bool allowed = true;
+		if(xCellCenter - innerCellSz_2 > enclosedCircle.first.x)
+			allowed = false;
+		else if(xCellCenter + innerCellSz_2 < enclosedCircle.second.x)
+			allowed = false;
+		else if(yCellCenter - innerCellSz_2 > enclosedCircle.first.y)
+			allowed = false;
+		else if(yCellCenter + innerCellSz_2 < enclosedCircle.second.y)
+			allowed = false;
+
+		if(false == allowed) {
+			if(verbose)
+				cout<<"The maze can't have "<<n<<" rows/columns, as in that case the walls will cross the Start Circle!"<<endl;
+			possibleNs.remove(n);
+		}
+	}
+	require(possibleNs.empty()==false, "Faulty algorithm, as this maze is correct!");
+
+	return possibleNs;
+}
+
+void TiltedMaze::ImageTiltedMazeReader::examineMazeBorder() {
+	// FIND THE BOTTOM-LEFT CORNER OF THE MAZE:
+	mazeCornerBL = findBottomLeftOfMaze(imgView);
+
+	// FIND THE BOTTOM-RIGHT CORNER OF THE MAZE:
+	mazeCornerBR = findBottomLeftOfMaze(
+		flipped_left_right_view(
+		subimage_view(imgView, 0, 0, (int)imgView.width(), (int)(mazeCornerBL.y + 1))));
+	mazeCornerBR.x = imgView.width() - mazeCornerBR.x - 1;
+
+	// FIND THE TOP-RIGHT CORNER OF THE MAZE:
+	mazeCornerTR = findBottomLeftOfMaze(
+		rotated90cw_view(
+		flipped_up_down_view(
+		subimage_view(imgView, 0, 0, (int)(mazeCornerBR.x + 1), (int)imgView.height()))));
+	mazeCornerTR.y = mazeCornerTR.x;
+	mazeCornerTR.x = mazeCornerBR.x;
+
+	require(abs((mazeCornerBR.y-mazeCornerTR.y) - (mazeCornerBR.x-mazeCornerBL.x)) < 15,
+		"We work for now only with square mazes. This is not a square one.");
+
+	// DEDUCE TOP-LEFT CORNER OF THE MAZE:
+	mazeCornerTL = point_t(mazeCornerBL.x, mazeCornerTR.y);
+
+	// DETERMINE WALL WIDTH:
+	wallWidth = diagonalFillLength(imgView, mazeCornerBL, BLACK_CHECK, MIN_THICKNESS_BORDER);
+	wallWidth_2 = wallWidth >> 1;
+
+	if(monitorOn)
+		drawRect(imgOutView, mazeCornerTL, mazeCornerBR);
+
+	// MAZE INTERIOR:
+	tl = point_t(mazeCornerTL.x + wallWidth, mazeCornerTL.y + wallWidth);
+	tr = point_t(mazeCornerTR.x - wallWidth, mazeCornerTR.y + wallWidth);
+	bl = point_t(mazeCornerBL.x + wallWidth, mazeCornerBL.y - wallWidth);
+	br = point_t(mazeCornerBR.x - wallWidth, mazeCornerBR.y - wallWidth);
+
+	if(monitorOn)
+		drawRect(imgOutView, tl, br);
+
+	point_t viewSize(tr.x - tl.x + 1, br.y - tr.y + 1);
+	innerMazeView = subimage_view(imgView, tl, viewSize);
+	innerMazeOutView = subimage_view(imgOutView, tl, viewSize);
+}
+
+pair<point_t, point_t> TiltedMaze::ImageTiltedMazeReader::encloseCircle() {
+	point_t circleTop = findCircleTop();
+	ptrdiff_t radius = diagonalFillLength(innerMazeView, circleTop, RED_CHECK, MIN_DIAMETER_CIRCLE>>1);
+	return make_pair(point_t(circleTop.x - radius, circleTop.y), point_t(circleTop.x + radius, circleTop.y + (radius << 1)));
+}
+
+point_t TiltedMaze::ImageTiltedMazeReader::findCircleTop() {
+	static unsigned circleSamplingStepSize = static_cast<unsigned>(MIN_DIAMETER_CIRCLE * M_SQRT1_2);
+
+	pair<point_t, point_t> firstSubsamplingSegment, firstRealSegment;
+	ptrdiff_t actualX, actualY;
+
+	// subsampled view (MIN_THICKNESS_BORDER) 
+	dynamic_xy_step_type<rgb8_view_t>::type
+		ssv = subsampled_view(innerMazeView, circleSamplingStepSize, circleSamplingStepSize);
+
+	// perform the subsampled search for the 1st red segment
+	firstSubsamplingSegment = find1stSegment(ssv, RED_CHECK);
+
+	// compute the original coordinates of the found pixel + defining the narrow search area
+	ptrdiff_t xLeft = (firstSubsamplingSegment.first.x - 1) * circleSamplingStepSize + 1;
+	ptrdiff_t yBottom = firstSubsamplingSegment.first.y * circleSamplingStepSize;
+	ptrdiff_t yTop = (firstSubsamplingSegment.first.y - 1) * circleSamplingStepSize + 1;
+	ptrdiff_t xRight = (firstSubsamplingSegment.second.x + 1) * circleSamplingStepSize - 1;
+
+	// the circle's top should be found traversing downwards and left->right
+	// the rectangle with height (circleSamplingStepSize - 1) right under line yTop
+	// and that extends from xLeft to xRight
+
+	// narrowing the search space for the thorough searching
+	rgb8_view_t
+		si = subimage_view(innerMazeView, (int)xLeft, (int)yTop, (int)(1 + xRight - xLeft), (int)(1 + yBottom - yTop));
+
+	// performing the concluding search: (find a 1st red top line and return its center)
+	firstRealSegment = find1stSegment(si, RED_CHECK);
+
+	// Computing the actual coordinates of the top of the circle
+	actualX = xLeft + ((firstRealSegment.first.x + firstRealSegment.second.x + 1) >> 1); // the center of the top red line of the circle
+	actualY = yTop + firstRealSegment.first.y;
+	require(isFit(innerMazeView(actualX, actualY), RED_CHECK), "Wrong coords computation!");
+
+	return point_t(actualX, actualY);
+}
+
+bool TiltedMaze::ImageTiltedMazeReader::isFit(const rgb8_pixel_t &pix, ColorCheckType checkType) {
+	bool result = false;
+	int channelValue = get_color(pix, green_t());
+
+	// all checked colors don't allow green to be very high
+	if(false == isDim(channelValue))
+		return false;
+
+	switch(checkType) {
+	case BLACK_CHECK:
+		return true;
+
+	case BLUE_CHECK:
+		return 
+			isDim(get_color(pix, red_t())) &&
+			(get_color(pix, blue_t()) > HIGH_THRESHOLD);
+
+	case RED_CHECK:
+		return 
+			isDim(get_color(pix, blue_t())) &&
+			(get_color(pix, red_t()) > HIGH_THRESHOLD);
+
+	default:
+		;
+	}
+
+	return result;
+}
+
+optional<string> TiltedMaze::nextLine(std::ifstream &ifs) const {
 	string line;
 	for(;;) {
-		if(!getline(ifs, line))
+		if( ! getline(ifs, line))
 			return optional<string>(); // EOF or error
 
 		// skip empty lines or comments
@@ -717,8 +1096,21 @@ void TiltedMaze::buildGraph() {
 	}
 }
 
-TiltedMaze::TiltedMaze(const string &mazeFile) : rowsCount(0U), columnsCount(0U) {
-	ifstream ifs(mazeFile);
+TiltedMaze::TiltedMaze(const string &mazeFile) :
+				rowsCount(0U), columnsCount(0U) {
+
+	path mazeNameAsPath(mazeFile);
+	require(mazeNameAsPath.has_extension(), "The image provided as maze source has no extension!");
+
+	string imgType(extension(mazeNameAsPath));
+	if(imgType.compare(".txt") == 0)
+		initFromTextFile(mazeFile);
+	else
+		initFromImageFile(mazeFile);
+}
+
+void TiltedMaze::initFromTextFile(const string &mazeFile) {
+	std::ifstream ifs(mazeFile);
 	optional<string> line;
 
 	// Reading the size of the maze
@@ -812,6 +1204,53 @@ TiltedMaze::TiltedMaze(const string &mazeFile) : rowsCount(0U), columnsCount(0U)
 	buildGraph();
 }
 
+void TiltedMaze::initFromImageFile(const string &mazeFile) {
+	ImageTiltedMazeReader mazeReader(mazeFile/*, "", true*/);
+
+	rowsCount = columnsCount = (unsigned)mazeReader.mazeSize();
+
+	unsigned i;
+	rows.reserve(rowsCount);
+	for(i=0U; i<rowsCount; ++i) {
+		split_interval_set<unsigned> sis;
+		sis += interval<unsigned>::type(0U, columnsCount);
+		rows.push_back(sis);
+	}
+
+	columns.reserve(columnsCount);
+	for(i=0U; i<columnsCount; ++i) {
+		split_interval_set<unsigned> sis;
+		sis += interval<unsigned>::type(0U, rowsCount);
+		columns.push_back(sis);
+	}
+
+	const vector<vector<unsigned>> &theVerticalWalls = mazeReader.getVfoundWalls();
+	const vector<vector<unsigned>> &theHorizontalWalls = mazeReader.getHfoundWalls();
+
+	for(i=0U; i<rowsCount; ++i) {
+		for(unsigned wallIdx : theVerticalWalls[i])  {
+			rows[i] += interval<unsigned>::type(++wallIdx, columnsCount);
+		}
+	}
+
+	for(i=0U; i<columnsCount; ++i) {
+		for(unsigned wallIdx : theHorizontalWalls[i])  {
+			columns[i] += interval<unsigned>::type(++wallIdx, rowsCount);
+		}
+	}
+
+	point_t theCircleLocation = mazeReader.circleLocation();
+	startLocation.row = (unsigned)theCircleLocation.y;
+	startLocation.col = (unsigned)theCircleLocation.x;
+
+	const list<point_t> &theSquares = mazeReader.squaresLocations();
+	for(const point_t &targetCoord : theSquares) {
+		targets.emplace_back(Target((unsigned)targetCoord.y, (unsigned)targetCoord.x));
+	}
+
+	buildGraph();
+}
+
 void TiltedMaze::initDisplaySettings() {
 	clearConsole();
 	bgColor = ConsoleColor::Black;
@@ -843,7 +1282,6 @@ int TiltedMaze::displayIndex(unsigned clientIdx, bool isRow) {
 
 	return (int)clientIdx;
 }
-
 
 void TiltedMaze::displayMaze() {
 	initDisplaySettings();
@@ -993,8 +1431,11 @@ bool TiltedMaze::solve(bool graphicMode/* = true*/) {
 		displayMaze();
 			
 	} else {
-		cout<<solutionsCount<<" solutions were found."<<endl;
-		cout<<"Presenting only First Solution: ";
+		if(solutionsCount == 1U)
+			cout<<"Found a solution: ";
+		else {
+			cout<<solutionsCount<<" solutions were found. Presenting only 1st one: ";
+		}
 		for(const BranchlessPath *bp : firstSolution) {
 			cout<<bp->id()<<' ';
 		}
@@ -1075,8 +1516,7 @@ void TiltedMaze::Targets::addTarget(TiltedMaze::Target &t, TiltedMaze::Branchles
 
 void TiltedMaze::Targets::addTarget(TiltedMaze::Target &t,
 			TiltedMaze::BranchlessPath &sharerBp1, TiltedMaze::BranchlessPath &sharerBp2) {
-	initialTargetBpMapping[&t] =
-		list_of(&sharerBp1)(&sharerBp2).convert_to_container<set<TiltedMaze::BranchlessPath*>>();
+	initialTargetBpMapping[&t] = set< TiltedMaze::BranchlessPath* >(list_of(&sharerBp1)(&sharerBp2));
 }
 
 unsigned TiltedMaze::Targets::unvisited(const set<TiltedMaze::BranchlessPath*> &traversedBps,
@@ -1205,37 +1645,46 @@ bool TiltedMaze::BpResExtensionFn::operator() (const BpAdjacencyList& g,
 
 void main(int, char*[]) {
 	if(testsOk())
-		cout<<"All tests were ok."<<endl;
+		cout<<"All tests were ok."<<endl<<"Entering interactive demonstration mode ..."<<endl;
 	else {
 		cerr<<"Found problems while performing the tests! Leaving ..."<<endl;
 		return;
 	}
 
-	cout<<"Entering interactive demonstration mode ..."<<endl;
-	cout<<"[Remember that for proceeding to the next move, you need to press a key!]"<<endl;
+	OPENFILENAME ofn;       // common dialog box structure
+	TCHAR szFile[260];       // buffer for file name
 
-	for(string line;;) {
-		cout<<endl<<"Please select which maze to solve and animate (1.."<<TEST_MAZES_COUNT<<")."<<endl
-			<<"Empty/invalid answers means you want to leave."<<endl
-			<<"Your choice:";
-		getline(cin, line);
-		if(line.empty())
-			break;
+	// Initialize OPENFILENAME
+	ZeroMemory(&ofn, sizeof(ofn));
+	ofn.lStructSize = sizeof(ofn);
+	ofn.hwndOwner = nullptr; // no owner
+	ofn.lpstrFile = szFile;
+	// Set lpstrFile[0] to '\0' so that GetOpenFileName does not 
+	// use the contents of szFile to initialize itself.
+	ofn.lpstrFile[0] = '\0';
+	ofn.nMaxFile = sizeof(szFile);
+	ofn.lpstrFilter = _T("All Input Maze Types\0*.txt;*.bmp;*.png;*.tif;*.tiff;")
+						 _T("*.jpg;*.jpeg\0Text Input Mazes\0*.txt\0Image Input Mazes\0")
+						 _T("*.bmp;*.png;*.tif;*.tiff;*.jpg;*.jpeg\0");
+	ofn.nFilterIndex = 1;
+	ofn.lpstrFileTitle = nullptr;
+	ofn.nMaxFileTitle = 0;
+	ofn.lpstrInitialDir = nullptr;
+	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+	ofn.lpstrTitle = _T("Please select a maze to solve or close the dialog to quit");
 
-		istringstream iss(line);
-		int mazeIdx = 0;
-		if((iss>>mazeIdx).bad() || mazeIdx < 1 || mazeIdx > TEST_MAZES_COUNT)
-			break;
+	while(GetOpenFileName(&ofn)) {
+		string mazeName = tstrToStr(ofn.lpstrFile);
 
-		ostringstream oss;
-		oss<<"res/maze"<<mazeIdx<<".txt";
-		string mazeName = oss.str();
 		try {
-			TiltedMaze maze(mazeName);
-			if(false == maze.solve())
-				cerr<<"Couldn't solve "<<mazeName<<endl;
-		} catch(std::exception&) {
-			cerr<<"Couldn't load maze "<<mazeName<<endl;
+			TiltedMaze tm(mazeName);
+			if(false == tm.solve()) {
+				cout<<"Couldn't solve "<<mazeName<<endl;
+				pressKeyToContinue(cout);
+			}
+		} catch(std::exception &e) {
+			cerr<<"Error detected in '"<<mazeName<<"': "<<e.what()<<endl;
+			pressKeyToContinue(cerr);
 		}
 	}
 }

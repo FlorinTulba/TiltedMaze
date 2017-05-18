@@ -4,11 +4,14 @@
  You might visit http://www.agame.com/game/tilt-maze
  to try yourself solving such problems (use the arrow keys to move)
 
- The program is able to load the puzzle from text files.
+ The program is able to load the puzzle from text files, but also
+ from captured snapshots, which contain various imperfections.
+ It is possible to recognize the original maze even when rotating
+ or mirroring the snapshot.
  
  Solving the maze is presented as a console animation.
 
- The project uses Boost.
+ The project uses Boost, Jpeg, Png, Tiff, Zlib libraries.
 
  Copyright (c) 2014, 2017 Florin Tulba
 
@@ -35,6 +38,11 @@
 #include <boost/icl/split_interval_set.hpp>
 #include <boost/optional.hpp>
 #include <boost/graph/adjacency_list.hpp>
+#include <boost/gil/image.hpp>
+#include <boost/gil/gil_concept.hpp>
+#include <boost/gil/image_view.hpp>
+#include <boost/gil/typedefs.hpp>
+#include <boost/gil/extension/io/detail/typedefs.hpp>
 
 #pragma warning ( pop )
 
@@ -70,6 +78,10 @@ public:
 
 		inline bool operator==(const Coord& other) const {
 			return (row == other.row) && (col == other.col);
+		}
+
+		inline bool operator!=(const Coord& other) const {
+			return ! operator==(other);
 		}
 
 		std::string toString() const;
@@ -383,6 +395,288 @@ private:
 
 	void initDisplaySettings();		///< Prepares the console animation of the solution
 	void revertDisplaySettings();	///< Reverts to the settings from before the animation
+
+	void initFromTextFile(const std::string &mazeFile);		///< load maze from the text file mazeFile
+	void initFromImageFile(const std::string &mazeFile);	///< load maze from the image file mazeFile
+
+	/// Loads a maze from an image (.bmp, .jpg/.jpeg, .png or .tif/.tiff)
+	class ImageTiltedMazeReader {
+		typedef enum {THICK_MAZE_BORDER, THICK_CIRCLE, THICK_SQUARES} SearchType;
+		typedef enum {RED_CHANNEL = 1, GREEN_CHANNEL = 2, BLUE_CHANNEL = 3} RGB_CHANNEL;
+		typedef enum {BLACK_CHECK, RED_CHECK, BLUE_CHECK} ColorCheckType;
+
+		enum {MIN_THICKNESS_BORDER = 3, MIN_DIAMETER_CIRCLE = 15, MIN_SIDE_SQUARE = 8};
+		enum {LOW_THRESHOLD = 90, HIGH_THRESHOLD = 255-LOW_THRESHOLD};
+
+		// Data used to display the read process details
+		bool monitorOn;	///< when ImageTiltedMazeReader is provided with an output folder, it writes a report there about loading the image
+		const std::string mazeOutName; ///< the name of the report file mentioned at monitorOn
+		boost::gil::rgb8_image_t imgOut;
+		boost::gil::rgb8_view_t imgOutView, innerMazeOutView;
+		static boost::gil::rgb8_pixel_t greenPixel;
+
+		// Specific data:
+		class FeasibleMazeConfig; // forward declaration
+
+		bool verbose;
+
+		const std::string &mazeName;
+		boost::gil::rgb8_image_t img;
+		boost::gil::rgb8_view_t imgView, innerMazeView;
+
+		std::shared_ptr<FeasibleMazeConfig> mostLikelyMazeConfig;
+
+		boost::gil::point_t mazeCornerBL, mazeCornerBR, mazeCornerTL, mazeCornerTR; // outer corners of the maze exterior border
+		boost::gil::point_t bl, br, tl, tr; // inner corners of the maze exterior border
+
+		// Below are the coordinates of the centers of the circle & squares
+		// They might express initially coords relative to the innerMazeView.
+		// After it's clear what's the maze size, they are transformed to denote the row&column within the maze
+		boost::gil::point_t circleCenter;
+		std::list<boost::gil::point_t> squares;
+
+		ptrdiff_t wallWidth, wallWidth_2;
+
+		class FeasibleMazeConfig {
+			const boost::gil::rgb8_view_t &innerMazeView; ///< the inner maze to analyze
+			const ptrdiff_t wallWidth;
+
+			// Next 2 vectors contain coordinates relative to innerMazeView.
+			// They are valid also for columns, as the maze is symmetrical.
+			// It's good to precompute them as they get reused quite a lot and involve floating-point operations.
+			std::vector<ptrdiff_t> rowCenters; ///< mazeSz values providing the x centers of each cell within a row
+			std::vector<ptrdiff_t> idealWallPositions;	///< the indexes within a row where the ideal middle of an inner wall should be found.
+			// There are only (mazeSz-1) values.
+			// idealWallPositions[i] = (rowCenters[i] + rowCenters[i+1]) / 2
+
+			unsigned _foundWallsCount; ///< counted walls if the maze would have mazeSz dimensions
+			std::vector<std::vector<unsigned>> hFoundWalls, vFoundWalls; // positions in columns, respectively rows where walls get found if maze is considered to have mazeSz dimensions
+
+			template<class ViewType>
+			void detectWallsOnRows(const ViewType &aView, std::vector<std::vector<unsigned>> &foundWalls) {
+				for(ptrdiff_t rowIdx = 0; rowIdx < mazeSz; ++rowIdx) {
+					ViewType::x_iterator itRowBegin = aView.row_begin(rowCenters[(size_t)rowIdx]);
+
+					for(ptrdiff_t colIdx = 0, lim = mazeSz - 1; colIdx < lim; ++colIdx) {
+						ViewType::x_iterator itIdealWallPos = itRowBegin + idealWallPositions[(size_t)colIdx];
+
+						bool wallFound = isFit(*itIdealWallPos, BLACK_CHECK);
+
+						for(ptrdiff_t offset = 1; (false == wallFound) && (offset < wallWidth); ++offset) {
+							wallFound = 
+								isFit(*(itIdealWallPos - offset), BLACK_CHECK) ||
+								isFit(*(itIdealWallPos + offset), BLACK_CHECK);
+						}
+
+						if(wallFound) {
+							foundWalls[(size_t)rowIdx].push_back((unsigned)colIdx);
+							++_foundWallsCount;
+						}
+					}
+				}
+			}
+
+			template<class ViewType>
+			void displayFoundWalls(const ViewType &aView, const std::vector<std::vector<unsigned>> &foundWalls) const {
+				for(ptrdiff_t rowIdx = 0; rowIdx < mazeSz; ++rowIdx) {
+					ViewType::x_iterator itRowBegin = aView.row_begin(rowCenters[(size_t)rowIdx]);
+
+					for(ptrdiff_t wallIdx : foundWalls[(size_t)rowIdx]) {
+						*(itRowBegin + idealWallPositions[(size_t)wallIdx]) = greenPixel;
+					}
+				}
+			}
+
+			COPY_CONSTR(FeasibleMazeConfig);
+			ASSIGN_OP(FeasibleMazeConfig);
+
+		public:
+			const ptrdiff_t mazeSz; ///< rows / columns count, as only square mazes are supported
+
+			FeasibleMazeConfig(const boost::gil::rgb8_view_t &theInnerMazeView, ptrdiff_t theWallWidth, ptrdiff_t feasibleMazeSz);
+
+			inline unsigned foundWallsCount() const {return _foundWallsCount;}
+			inline const std::vector<std::vector<unsigned>>& getHfoundWalls() const {return hFoundWalls;}
+			inline const std::vector<std::vector<unsigned>>& getVfoundWalls() const {return vFoundWalls;}
+			inline const std::vector<ptrdiff_t>& getRowCenters() const {return rowCenters;}
+
+			template<class ViewType>
+			void displayFoundWalls(const ViewType &aView) const {
+				displayFoundWalls(aView, vFoundWalls); // traverse each row displaying vertical walls
+
+				// use detectWallsOnRows on the rotated clockwise view of the flipped up-down view of the aView
+				displayFoundWalls( rotated90cw_view( flipped_up_down_view( aView )),
+					hFoundWalls); // traverses each original column displaying horizontal walls
+			}
+		};
+
+		static inline bool isDim(int channelValue) {
+			return (channelValue < LOW_THRESHOLD);
+		}
+
+		static inline boost::gil::point_t rectCenter(const boost::gil::point_t &tl, const boost::gil::point_t &br) {
+			return boost::gil::point_t( (tl.x + br.x + 1) >> 1, (tl.y + br.y + 1) >> 1 ); // rounded arithmetic mean of each pair of coords
+		}
+
+		static bool isFit(const boost::gil::rgb8_pixel_t &pix, ColorCheckType checkType);
+
+		template<class ViewType>
+		std::pair<boost::gil::point_t, boost::gil::point_t> find1stSegment(const ViewType &imgView, ColorCheckType checkType) {
+			bool found1stEnd = false;
+			ptrdiff_t theY = 0, x1 = 0, x2 = 0;
+
+			ViewType::iterator it = imgView.begin();
+			for(; it != imgView.end(); ++it) {
+				if(false == found1stEnd) {
+					if(found1stEnd = (isFit(*it, checkType))) {
+						theY = it.y_pos();
+						x1 = it.x_pos();
+					}
+
+					continue;
+				}
+
+				// Here the found1stEnd is true and we have to search the 2nd end:
+				if(false == (isFit(*it, checkType))) {
+					--it; // return to last fit pixel and prevent it to have a different row
+					x2 = it.x_pos();
+
+					break;
+				}
+			}
+
+			return std::make_pair(boost::gil::point_t(x1, theY), boost::gil::point_t(x2, theY));
+		}
+
+
+		boost::gil::point_t findCircleTop();
+
+		template<class ViewType>
+		boost::gil::point_t findBottomLeftOfMaze(const ViewType &imgView) {
+			bool foundBlack = false;
+			ptrdiff_t actualX, actualY;
+
+			// The maze border & walls are black, while targets are blue and the start position is red.
+			// Because of that, they can be identified more easily by checking that the green channel to be 0.
+			// 
+			// Aside from that, it's simpler to find 1st the bottom of the maze, as above its top there's some 'noise'
+			// 
+			// Furthermore, the min thickness of the border of the maze lets us perform a subsampled search:
+
+			// flipped horizontally view of the green channel of the subsampled view (MIN_THICKNESS_BORDER) 
+			boost::gil::image_view< boost::gil::gray8_step_loc_t >
+				fh_gc_ssv = boost::gil::flipped_up_down_view(
+								boost::gil::nth_channel_view(
+										boost::gil::subsampled_view(imgView, MIN_THICKNESS_BORDER, MIN_THICKNESS_BORDER),
+									GREEN_CHANNEL));
+
+			// perform the subsampled search for the 1st black (zero green-channel pixel)
+			boost::gil::image_view< boost::gil::gray8_step_loc_t >::iterator fh_gc_ssv_it = fh_gc_ssv.begin();
+			for(; fh_gc_ssv_it != fh_gc_ssv.end(); ++fh_gc_ssv_it) {
+				if(foundBlack = isDim(*fh_gc_ssv_it))
+					break;
+			}
+			require(foundBlack, "There must be some black!");
+
+			// compute the original coordinates of the found pixel
+			ptrdiff_t xRight = fh_gc_ssv_it.x_pos() * MIN_THICKNESS_BORDER;
+			ptrdiff_t yTop = (fh_gc_ssv.height() - fh_gc_ssv_it.y_pos() - 1) * MIN_THICKNESS_BORDER;
+
+			// the bottom-left corner of the maze it's located in a square with its side=(MIN_THICKNESS_BORDER - 1) 
+			// under and to the left of the found pixel. Here are the necessary additional coords:
+			ptrdiff_t xLeft = ( std::max )((xRight - MIN_THICKNESS_BORDER + 1), (ptrdiff_t)0);
+			ptrdiff_t yBottom = ( std::min )((yTop + MIN_THICKNESS_BORDER - 1), (imgView.height()-1));
+
+
+			// The actual searched corner will be found by looking upwards and from left->right
+			// strictly within the mentioned square
+
+			// flipped horizontally view of the subimage
+			boost::gil::image_view< boost::gil::gray8_step_loc_t >
+				gc = boost::gil::flipped_up_down_view(
+						boost::gil::subimage_view(
+								boost::gil::nth_channel_view(imgView, GREEN_CHANNEL),
+							(int)xLeft, (int)yTop, (int)(1 + xRight - xLeft), (int)(1 + yBottom - yTop)));
+
+			// performing the concluding search:
+			boost::gil::image_view< boost::gil::gray8_step_loc_t >::iterator gc_it = gc.begin();
+			for(foundBlack = false; gc_it != gc.end(); ++gc_it) {
+				if(foundBlack = isDim(*gc_it))
+					break;
+			}
+			require(foundBlack, "At least the previously found black pixel must be found!");
+
+			// Computing the actual coordinates of the requested maze corner
+			actualX = xLeft + gc_it.x_pos();
+			actualY = yTop + gc.height() - gc_it.y_pos()- 1;
+			require(isDim(get_color(imgView(actualX, actualY), green_t())), "Wrong coords computation!");
+
+			return boost::gil::point_t(actualX, actualY);
+		}
+
+		template<class ViewType>
+		ptrdiff_t diagonalFillLength(const ViewType &imgView, const boost::gil::point_t &startPoint, ColorCheckType checkType, unsigned minLength = 0U) {
+			ViewType::y_coord_t 
+				result = minLength,
+				one = (ViewType::y_coord_t)1,
+				signedOne = (checkType == BLACK_CHECK) ? -one : one;
+
+			boost::gil::point_t diagStep(one, signedOne);
+
+			ViewType::xy_locator toBeChecked =
+				imgView.xy_at(startPoint.x + result + one, startPoint.y + signedOne * (result + one));
+
+			for(;;) {
+				if(false == isFit(*toBeChecked, checkType))
+					break;
+
+				++result;
+				toBeChecked += diagStep;
+			}
+
+			return (ptrdiff_t)result;
+		}
+
+		std::pair<boost::gil::point_t, boost::gil::point_t> encloseCircle();
+
+		template<class ViewType>
+		void drawRect(const ViewType &theView, const boost::gil::point_t &tl, const boost::gil::point_t &br, const boost::gil::rgb8_pixel_t &pix2set = greenPixel) {
+
+			ptrdiff_t rectWidth = br.x - tl.x + 1;
+
+			ViewType::x_iterator
+				colsItTop = theView.row_begin(tl.y) + tl.x,
+				colsItBottom = theView.row_begin(br.y) + tl.x;
+			for(ptrdiff_t i=0; i<rectWidth; ++i, ++colsItTop, ++colsItBottom)
+				*colsItTop = *colsItBottom = pix2set;
+
+			ViewType::y_iterator
+				rowsItLeft = theView.col_begin(tl.x) + tl.y,
+				rowsItRight = theView.col_begin(br.x) + tl.y;
+			for(ptrdiff_t i=0; i<rectWidth; ++i, ++rowsItLeft, ++rowsItRight)
+				*rowsItLeft = *rowsItRight = pix2set;
+		}
+
+		void examineMazeBorder();
+		std::list<ptrdiff_t> circleProcessing();
+		void squaresProcessing();
+
+		ASSIGN_OP(ImageTiltedMazeReader);
+		COPY_CONSTR(ImageTiltedMazeReader);
+
+	public:
+		ImageTiltedMazeReader(const std::string &theMazeName, const std::string &outDir = "", bool verbose = false);
+
+		inline ptrdiff_t mazeSize() const {return mostLikelyMazeConfig->mazeSz;}
+		inline boost::gil::point_t circleLocation() const {return circleCenter;}
+		inline const std::list<boost::gil::point_t> squaresLocations() const {return squares;}
+		inline const std::vector<std::vector<unsigned>>& getHfoundWalls() const {
+			return mostLikelyMazeConfig->getHfoundWalls();
+		}
+		inline const std::vector<std::vector<unsigned>>& getVfoundWalls() const {
+			return mostLikelyMazeConfig->getVfoundWalls();
+		}
+	};
 
 public:
 	/// Helper for computing console screen coordinates
