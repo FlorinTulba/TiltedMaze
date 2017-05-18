@@ -1,0 +1,104 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Header Files\Adapted3rdParty">
+      <UniqueIdentifier>{fc8c0443-5b91-4c10-8398-f46159d36230}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Util">
+      <UniqueIdentifier>{f5c6c409-5723-4fe5-a0a0-ebeba6543916}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Util">
+      <UniqueIdentifier>{e62b49af-9089-440d-a605-f61b258878fb}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\Adapted3rdParty\graph_r_c_shortest_paths.h">
+      <Filter>Header Files\Adapted3rdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tiltedMaze.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\forcedInclude.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Util\conditions.h">
+      <Filter>Header Files\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Util\consoleOps.h">
+      <Filter>Header Files\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Util\environ.h">
+      <Filter>Header Files\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Util\various.h">
+      <Filter>Header Files\Util</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\tiltedMaze.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Util\conditions.cpp">
+      <Filter>Source Files\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Util\consoleOps.cpp">
+      <Filter>Source Files\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Util\environ.cpp">
+      <Filter>Source Files\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Util\various.cpp">
+      <Filter>Source Files\Util</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="res\maze1.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
+    <Text Include="res\maze2.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
+    <Text Include="res\maze3.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
+    <Text Include="res\maze4.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
+    <Text Include="res\maze5.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
+    <Text Include="res\maze6.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
+    <Text Include="res\maze7.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
+    <Text Include="res\maze8.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
+    <Text Include="res\maze9.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
+    <Text Include="res\maze10.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
+    <Text Include="res\maze11.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="TiltedMaze.licenseheader" />
+  </ItemGroup>
+</Project>

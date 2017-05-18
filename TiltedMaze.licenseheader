@@ -1,0 +1,16 @@
+﻿extensions: .cpp .h .hpp
+/******************************************************************
+ Project %Project% solves tilted maze problems.
+
+ You might visit http://www.agame.com/game/tilt-maze
+ to try yourself solving such problems (use the arrow keys to move)
+
+ The program is able to load the puzzle from text files.
+ 
+ Solving the maze is presented as a console animation.
+
+ The project uses Boost.
+
+ Copyright (c) 2014, 2017 Florin Tulba
+
+*******************************************************************/

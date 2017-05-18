@@ -1,0 +1,16 @@
+## Files to ignore
+*.aps
+*.[bB][aA][kK]
+*.ilk
+*.lastbuildstate
+*.*log
+*.obj
+*.pdb
+*.*sdf
+*.suo
+*.user
+
+## Folders to ignore
+[Dd]ebug/
+[Rr]elease/
+x64/

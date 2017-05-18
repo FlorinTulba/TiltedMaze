@@ -1,0 +1,33 @@
+; Maze size (rows columns)
+5 5
+
+; Rows:
+; 1st number is the row's 0-based index counting from top towards bottom
+; the numbers separated by space following ':' are the 0-based indices after which a wall follows
+; The skipped rows have no wall interruptions
+row 0: 3
+row 1: 2
+row 2: 0
+row 3: 1
+
+; Columns:
+; 1st number is the column's 0-based index counting from left to right
+; the numbers separated by space following ':' are the 0-based indices after which a wall follows
+; The skipped columns have no wall interruptions
+column 0: 0 3
+column 2: 0 2
+column 3: 3
+column 4: 2 3
+
+; Start position (row column)
+2 2
+
+; Targets (row column)
+0 1
+0 3
+1 0
+1 4
+3 0
+3 4
+4 1
+4 3
