@@ -5,7 +5,7 @@
   <PropertyGroup />
   <ItemDefinitionGroup>
     <Link>
-      <AdditionalDependencies>libboost_filesystem-vc120-mt-1_63.lib;libboost_system-vc120-mt-1_63.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libboost_filesystem-vc120-mt-1_63.lib;libboost_system-vc120-mt-1_63.lib;opencv_core300.lib;opencv_imgcodecs300.lib;opencv_imgproc300.lib;opencv_highgui300.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup />

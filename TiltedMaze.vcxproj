@@ -44,62 +44,116 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LinkIncremental>true</LinkIncremental>
+    <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <PrecompiledHeader>
-      </PrecompiledHeader>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <WarningLevel>EnableAllWarnings</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)src\Util;$(SolutionDir)src;$(SolutionDir)src\Adapted3rdParty;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <ForcedIncludeFiles>forcedInclude.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <AdditionalIncludeDirectories>$(SolutionDir)src;$(SolutionDir)src\Util;$(SolutionDir)src\Adapted3rdParty;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>forcedInclude.h</ForcedIncludeFiles>
+      <MultiProcessorCompilation>false</MultiProcessorCompilation>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
     </Link>
+    <PostBuildEvent>
+      <Command>xcopy /YD "$(SolutionDir)dll\*.dll" "$(TargetDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>EnableAllWarnings</WarningLevel>
-      <PrecompiledHeader>
-      </PrecompiledHeader>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)src\Util;$(SolutionDir)src;$(SolutionDir)src\Adapted3rdParty;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <ForcedIncludeFiles>forcedInclude.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <AdditionalIncludeDirectories>$(SolutionDir)src;$(SolutionDir)src\Util;$(SolutionDir)src\Adapted3rdParty;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>forcedInclude.h</ForcedIncludeFiles>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
+    <PostBuildEvent>
+      <Command>xcopy /YD "$(SolutionDir)dll\*.dll" "$(TargetDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\consoleMode.cpp" />
+    <ClCompile Include="src\graphicalMode.cpp" />
+    <ClCompile Include="src\maze.cpp" />
+    <ClCompile Include="src\mazeImageParser.cpp" />
+    <ClCompile Include="src\mazeSolver.cpp" />
+    <ClCompile Include="src\mazeStruct.cpp" />
+    <ClCompile Include="src\mazeTextParser.cpp" />
+    <ClCompile Include="src\problemAdapter.cpp" />
+    <ClCompile Include="src\Util\conditions.cpp" />
+    <ClCompile Include="src\Util\consoleOps.cpp" />
+    <ClCompile Include="src\Util\environ.cpp" />
+    <ClCompile Include="src\Util\various.cpp" />
+  </ItemGroup>
+  <ItemGroup>
     <ClInclude Include="src\Adapted3rdParty\graph_r_c_shortest_paths.h" />
+    <ClInclude Include="src\consoleMode.h" />
+    <ClInclude Include="src\graphicalMode.h" />
     <ClInclude Include="src\forcedInclude.h" />
-    <ClInclude Include="src\tiltedMaze.h" />
+    <ClInclude Include="src\mazeImageParser.h" />
+    <ClInclude Include="src\mazeSolver.h" />
+    <ClInclude Include="src\mazeStruct.h" />
+    <ClInclude Include="src\mazeTextParser.h" />
+    <ClInclude Include="src\problemAdapter.h" />
     <ClInclude Include="src\Util\conditions.h" />
     <ClInclude Include="src\Util\consoleOps.h" />
     <ClInclude Include="src\Util\environ.h" />
     <ClInclude Include="src\Util\various.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\tiltedMaze.cpp" />
-    <ClCompile Include="src\Util\conditions.cpp" />
-    <ClCompile Include="src\Util\consoleOps.cpp" />
-    <ClCompile Include="src\Util\environ.cpp" />
-    <ClCompile Include="src\Util\various.cpp" />
+    <Image Include="res\maze1.bmp" />
+    <Image Include="res\maze10.jpg" />
+    <Image Include="res\maze11.tif" />
+    <Image Include="res\maze2.png" />
+    <Image Include="res\maze3.jpg" />
+    <Image Include="res\maze4.jpg" />
+    <Image Include="res\maze5.jpg" />
+    <Image Include="res\maze6.jpg" />
+    <Image Include="res\maze7.jpg" />
+    <Image Include="res\maze8.jpg" />
+    <Image Include="res\maze9.jpg" />
+    <Image Include="res\rot_maze1.bmp" />
+    <Image Include="res\rot_maze10.jpg" />
+    <Image Include="res\rot_maze11.tif" />
+    <Image Include="res\rot_maze2.png" />
+    <Image Include="res\rot_maze3.jpg" />
+    <Image Include="res\rot_maze4.jpg" />
+    <Image Include="res\rot_maze5.jpg" />
+    <Image Include="res\rot_maze6.jpg" />
+    <Image Include="res\rot_maze7.jpg" />
+    <Image Include="res\rot_maze8.jpg" />
+    <Image Include="res\rot_maze9.jpg" />
+    <Image Include="res\rot_persp_maze1.bmp" />
+    <Image Include="res\rot_persp_maze10.jpg" />
+    <Image Include="res\rot_persp_maze11.tif" />
+    <Image Include="res\rot_persp_maze2.png" />
+    <Image Include="res\rot_persp_maze3.jpg" />
+    <Image Include="res\rot_persp_maze4.jpg" />
+    <Image Include="res\rot_persp_maze5.jpg" />
+    <Image Include="res\rot_persp_maze6.jpg" />
+    <Image Include="res\rot_persp_maze7.jpg" />
+    <Image Include="res\rot_persp_maze8.jpg" />
+    <Image Include="res\rot_persp_maze9.jpg" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="res\maze1.txt" />
@@ -115,6 +169,17 @@
     <Text Include="res\maze9.txt" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="res\maze1.jpg" />
+    <None Include="res\maze10.tif" />
+    <None Include="res\maze11.png" />
+    <None Include="res\maze2.bmp" />
+    <None Include="res\maze3.tif" />
+    <None Include="res\maze4.png" />
+    <None Include="res\maze5.tif" />
+    <None Include="res\maze6.bmp" />
+    <None Include="res\maze7.bmp" />
+    <None Include="res\maze8.png" />
+    <None Include="res\maze9.png" />
     <None Include="TiltedMaze.licenseheader" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

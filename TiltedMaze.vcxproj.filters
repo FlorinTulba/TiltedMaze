@@ -24,10 +24,63 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\Adapted3rdParty\graph_r_c_shortest_paths.h">
-      <Filter>Header Files\Adapted3rdParty</Filter>
+    <ClCompile Include="src\consoleMode.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\graphicalMode.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\maze.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mazeImageParser.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mazeSolver.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mazeStruct.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mazeTextParser.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\problemAdapter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Util\conditions.cpp">
+      <Filter>Source Files\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Util\consoleOps.cpp">
+      <Filter>Source Files\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Util\environ.cpp">
+      <Filter>Source Files\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Util\various.cpp">
+      <Filter>Source Files\Util</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\consoleMode.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\tiltedMaze.h">
+    <ClInclude Include="src\graphicalMode.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mazeImageParser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mazeSolver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mazeStruct.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mazeTextParser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\problemAdapter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\forcedInclude.h">
@@ -45,23 +98,110 @@
     <ClInclude Include="src\Util\various.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
+    <ClInclude Include="src\Adapted3rdParty\graph_r_c_shortest_paths.h">
+      <Filter>Header Files\Adapted3rdParty</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\tiltedMaze.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Util\conditions.cpp">
-      <Filter>Source Files\Util</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Util\consoleOps.cpp">
-      <Filter>Source Files\Util</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Util\environ.cpp">
-      <Filter>Source Files\Util</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Util\various.cpp">
-      <Filter>Source Files\Util</Filter>
-    </ClCompile>
+    <Image Include="res\maze1.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\maze2.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\maze3.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\maze4.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\maze5.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\maze6.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\maze7.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\maze8.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\maze9.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\maze10.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\maze11.tif">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\rot_maze1.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\rot_maze2.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\rot_maze3.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\rot_maze4.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\rot_maze5.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\rot_maze6.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\rot_maze7.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\rot_maze8.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\rot_maze9.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\rot_maze10.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\rot_maze11.tif">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\rot_persp_maze1.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\rot_persp_maze2.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\rot_persp_maze3.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\rot_persp_maze4.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\rot_persp_maze5.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\rot_persp_maze6.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\rot_persp_maze7.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\rot_persp_maze8.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\rot_persp_maze9.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\rot_persp_maze10.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\rot_persp_maze11.tif">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <Text Include="res\maze1.txt">
@@ -100,5 +240,38 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="TiltedMaze.licenseheader" />
+    <None Include="res\maze1.jpg">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="res\maze2.bmp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="res\maze3.tif">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="res\maze4.png">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="res\maze5.tif">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="res\maze6.bmp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="res\maze7.bmp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="res\maze8.png">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="res\maze9.png">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="res\maze10.tif">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="res\maze11.png">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

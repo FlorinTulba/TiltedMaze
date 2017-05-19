@@ -3,20 +3,24 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros">
     <BoostDir>e:\Work\VS\C_Cpp\FromOthers\boost</BoostDir>
+    <OpenCvDir>d:\Programs\OpenCV\BuildVS2013\install</OpenCvDir>
   </PropertyGroup>
   <PropertyGroup />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)inc;$(BoostDir);$(SolutionDir)inc\jpeg;$(SolutionDir)inc\png;$(SolutionDir)inc\tiff;$(SolutionDir)inc\zlib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(BoostDir);$(OpenCvDir)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(SolutionDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>jpeg_v120.lib;libpng_v120.lib;libtiff_v120.lib;zlib_v120.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(BoostDir)\stage64\v120\lib;$(OpenCvDir)\x64\vc12\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <BuildMacro Include="BoostDir">
       <Value>$(BoostDir)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="OpenCvDir">
+      <Value>$(OpenCvDir)</Value>
       <EnvironmentVariable>true</EnvironmentVariable>
     </BuildMacro>
   </ItemGroup>

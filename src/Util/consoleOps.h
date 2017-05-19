@@ -6,12 +6,14 @@
 
  The program is able to load the puzzle from text files, but also
  from captured snapshots, which contain various imperfections.
- It is possible to recognize the original maze even when rotating
- or mirroring the snapshot.
+ It is possible to recognize the original maze even when rotating,
+ mirroring the snapshot, or even after applying perspective
+ transformations on it.
  
- Solving the maze is presented as a console animation.
+ Solving the maze is presented as an animation, either on console,
+ or within a normal window.
 
- The project uses Boost, Jpeg, Png, Tiff, Zlib libraries.
+ The project uses OpenCV and Boost.
 
  Copyright (c) 2014, 2017 Florin Tulba
 
